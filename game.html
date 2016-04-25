@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Game</title>
+        <script src="phaser.min.js" type="text/javascript"></script>
+    </head>
+    <body>
+
+        <script type="text/javascript">
+		
+		/** state preloader **/
+		
+		var Videogame = {};
+
+		Videogame.Preloader = function() {};
+
+		Videogame.Preloader.prototype = {
+		    preload: function () {
+
+		        this.load.path = 'assets/';
+
+		        this.load.bitmapFont('test-font');
+
+		        this.load.images([ 'logo', 'star_background', 'player' ]);
+
+		    },
+
+		    create: function () {
+
+		        this.state.start('MENU');
+
+		    }
+		};
+			
+		/** menu screen **/
+		
+		Videogame.Screen_Menu = function() {};
+		
+		Videogame.Screen_Menu.prototype = {
+			create: function () {
+						   // params: x, y, id, OPTIONAL: frame, group
+				var bg = this.add.image(0, 0, 'star_background');
+				bg.scale = { x: 2, y: 2 }
+				
+				var logo = this.add.image(
+					this.world.centerX, 
+					140, 
+					'logo'
+				);
+				
+				logo.anchor.x = 0.5;
+				
+		        var start = this.add.bitmapText(
+					this.world.centerX, 
+					this.world.centerY, 
+					'test-font', 
+					'PRESS \'ENTER\' TO PLAY', 
+					40 // px
+				);
+					
+		        start.anchor.x = 0.5;
+				start.anchor.y = 0.5;
+		        start.smoothed = false;
+		        start.tint = 0xffffff;
+				
+				var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+				enter_key.onDown.addOnce(function start_game() {
+					this.state.start('GAME');
+				}, this);
+			}
+		};
+		
+		/** game screen **/
+		
+		Videogame.Screen_Game = function screen_game() {
+		    this.score = 0;
+		    this.scoreText = null;
+		    this.speed = 0;
+		};
+		
+		Videogame.Screen_Game.prototype = {
+			init: function() {
+		        this.score = 0;
+		        this.speed = 0;
+			},
+			
+			create: function() {
+				// params: x, y, id, OPTIONAL: frame, group
+				var bg = this.add.image(0, 0, 'star_background');
+				bg.scale = { x: 2, y: 2 };
+				
+				this.player = this.add.sprite(200, 200, 'player');
+				this.player.scale = { x: 0.5, y: 0.5 };
+				
+				this.cursors = this.input.keyboard.createCursorKeys();
+			},
+			
+			update: function() {
+				
+				if (this.cursors.left.isDown)
+			    {
+			        this.player.x -= 10;
+			    }
+			    else if (this.cursors.right.isDown)
+			    {
+			        this.player.x += 10;
+			    }
+
+			    if (this.cursors.up.isDown)
+			    {
+			        this.player.y -= 10;
+			    }
+			    else if (this.cursors.down.isDown)
+			    {
+			        this.player.y += 10;
+			    }
+			}
+		};
+		
+		// x, y
+        var global_game = new Phaser.Game(254 * 2, 256 * 2); // 254x256 is bg size
+		
+		// params: key, state, autostart?
+		global_game.state.add('PRELOADER', Videogame.Preloader, false);
+		global_game.state.add('MENU', Videogame.Screen_Menu, false);
+		global_game.state.add('GAME', Videogame.Screen_Game, false);
+		
+		global_game.state.start('PRELOADER');
+		
+
+        </script>
+
+    </body>
+</html>
