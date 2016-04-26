@@ -23,7 +23,8 @@
 					'img_logo', 
 					'img_star_background', 
 					'img_player', 
-					'img_laser_red'
+					'img_laser_red',
+					'img_enemy1'
 				]);
 				
 				this.physics.startSystem(Phaser.Physics.ARCADE);
@@ -117,42 +118,77 @@
 				this.lifes.setAll('scale', { x: 0.33, y: 0.33 });
 				for (var i = 0; i < this.lifes.children.length; i++) {
 				    if ( ! this.lifes.children[i].alive ) {
-						console.log(this.lifes.children[i]);
-						console.log(i);
+						// console.log(this.lifes.children[i]);
+						// console.log(i);
 						
 						this.lifes.children[i].position.y = 8;
 						this.lifes.children[i].position.x = i * this.lifes.children[i].width + 10;
 						this.lifes.children[i].visible = true;
 					}
 				}
+				this.lifes.reverse();
 				
 				this.player = this.add.sprite(200, 200, 'img_player');
 				this.player.scale = { x: 0.5, y: 0.5 };
 				this.physics.arcade.enable(this.player);
 				this.player.body.collideWorldBounds = true;
+				this.player.body.bounce.setTo(1, 1);
 				
 				// console.log(this.player.body)
 				// console.log(this.player)
+				
+				this.enemy1 = this.add.sprite(100, 100, 'img_enemy1');
+				this.enemy1.scale = { x: 0.5, y: 0.5 };
+				this.physics.arcade.enable(this.enemy1);
+				this.enemy1.body.immovable = true;
 				
 				this.cursors = this.input.keyboard.createCursorKeys();
 			},
 			
 			update: function() {
 				
-				if (this.cursors.left.isDown)
+				this.physics.arcade.collide(this.enemy1, this.player, function remove_player_life(ob1, ob2) {
+					// body...
+					if( ! ob2.hasCollided ) {
+						ob2.hasCollided = true;
+						
+						if (this.lifes.length)
+						{
+							this.lifes.removeChildAt(0);
+							console.log(this.lifes.length);
+							// todo: kill player => game over scene
+						}
+						
+						var t = this.add.tween(ob2).to(
+							{ alpha: 0 }, // prop
+							200, // duration
+							"Linear", // ease
+							true, // autostar?
+							0, // delay ms
+							1, // repeat
+							true // yoyo?
+						);
+						
+						t.onComplete.add(function() {
+							ob2.hasCollided = false;
+						});
+					}
+				}, null, this);
+				
+				if ( this.cursors.left.isDown || this.input.keyboard.isDown(Phaser.Keyboard.A) )
 			    {
 			        this.player.body.velocity.x = -this.speed;
 			    }
-			    else if (this.cursors.right.isDown)
+			    else if ( this.cursors.right.isDown || this.input.keyboard.isDown(Phaser.Keyboard.D))
 			    {
 					this.player.body.velocity.x = this.speed;
 			    }
 
-			    if (this.cursors.up.isDown)
+			    if ( this.cursors.up.isDown || this.input.keyboard.isDown(Phaser.Keyboard.W))
 			    {
 					this.player.body.velocity.y = -this.speed;
 			    }
-			    else if (this.cursors.down.isDown)
+			    else if ( this.cursors.down.isDown || this.input.keyboard.isDown(Phaser.Keyboard.S))
 			    {
 			        this.player.body.velocity.y = this.speed;
 			    }
@@ -185,6 +221,9 @@
 			render: function () {
 				// this.game.debug.text(this.game.time.now, 10, 30);
 				// this.game.debug.text(this.next_fire, 10, 50);
+				
+				// this.game.debug.body(this.player);
+			    this.game.debug.body(this.enemy1);
 			}
 			
 			
