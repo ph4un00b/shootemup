@@ -1,246 +1,312 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="UTF-8" />
-        <title>Game</title>
-        <script src="phaser.min.js" type="text/javascript"></script>
-    </head>
-    <body>
+<head>
+	<meta charset="UTF-8" />
+	<title>Game</title>
+	<script src="phaser.min.js" type="text/javascript"></script>
+</head>
+<body>
 
-        <script type="text/javascript">
+	<script type="text/javascript">
 		
-		/** state preloader **/
+	/** state preloader **/
 		
-		var Videogame = {};
+	var Videogame = {};
 
-		Videogame.Preloader = function() {};
+	Videogame.Preloader = function() {};
 
-		Videogame.Preloader.prototype = {
-		    preload: function () {
-		        this.load.path = 'assets/';
-		        this.load.bitmapFont('test-font');
-		        this.load.images([
-					'img_logo', 
-					'img_star_background', 
-					'img_player', 
-					'img_laser_red',
-					'img_enemy1'
-				]);
+	Videogame.Preloader.prototype = {
+		preload: function () {
+			this.load.path = 'assets/';
+			this.load.bitmapFont('test-font');
+			this.load.images([
+				'img_logo', 
+				'img_star_background', 
+				'img_player', 
+				'img_laser_red',
+				'img_enemy1',
+				'img_enemy2',
+				'img_enemy3'
+			]);
 				
-				this.physics.startSystem(Phaser.Physics.ARCADE);
-		    },
+			this.physics.startSystem(Phaser.Physics.ARCADE);
+		},
 
-		    create: function () {
+		create: function () {
 
-		        this.state.start('MENU');
+			this.state.start('MENU');
 
-		    }
-		};
+		}
+	};
 			
-		/** menu screen **/
+	/** menu screen **/
 		
-		Videogame.Screen_Menu = function() {};
+	Videogame.Screen_Menu = function() {};
 		
-		Videogame.Screen_Menu.prototype = {
-			create: function () {
-						   // params: x, y, id, OPTIONAL: frame, group
-				var bg = this.add.image(0, 0, 'img_star_background');
-				bg.scale = { x: 2, y: 2 }
+	Videogame.Screen_Menu.prototype = {
+		create: function () {
+			// params: x, y, id, OPTIONAL: frame, group
+			var bg = this.add.image(0, 0, 'img_star_background');
+			bg.scale = { x: 2, y: 2 }
 				
-				var logo = this.add.image(
-					this.world.centerX, 
-					140, 
-					'img_logo'
-				);
+			var logo = this.add.image(
+				this.world.centerX, 
+				140, 
+				'img_logo'
+			);
 				
-				logo.anchor.x = 0.5;
+			logo.anchor.x = 0.5;
 				
-		        var start = this.add.bitmapText(
-					this.world.centerX, 
-					this.world.centerY, 
-					'test-font', 
-					'PRESS \'ENTER\' TO PLAY', 
-					40 // px
-				);
+			var start = this.add.bitmapText(
+				this.world.centerX, 
+				this.world.centerY, 
+				'test-font', 
+				'PRESS \'ENTER\' TO PLAY', 
+				40 // px
+			);
 					
-		        start.anchor.x = 0.5;
-				start.anchor.y = 0.5;
-		        start.smoothed = false;
-		        start.tint = 0xffffff;
+			start.anchor.x = 0.5;
+			start.anchor.y = 0.5;
+			start.smoothed = false;
+			start.tint = 0xffffff;
 				
-				var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
-				enter_key.onDown.addOnce(function start_game() {
-					this.state.start('GAME');
-				}, this);
-			}
-		};
+			var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+			enter_key.onDown.addOnce(function start_game() {
+				this.state.start('GAME');
+			}, this);
+		}
+	};
 		
-		/** game screen **/
+	/** game screen **/
 		
-		Videogame.Screen_Game = function screen_game() {
-		    this.score = 0;
-		    this.scoreText = null;
-		    this.speed = 0;
-			this.is_mouse_down = false;
+	Videogame.Screen_Game = function screen_game() {
+		this.score = 0;
+		this.scoreText = null;
+		this.speed = 0;
+		this.is_player_firing = false;
 			
-			this.next_fire = 0;
-			this.bullet_speed = 600;
-			this.fire_rate = 100;
-		};
+		this.next_fire = 0;
+		this.bullet_speed = 600;
+		this.fire_rate = 100;
+	};
 		
-		Videogame.Screen_Game.prototype = {
-			init: function() {
-		        this.score = 0;
-		        this.speed = 230;
-			},
+	Videogame.Screen_Game.prototype = {
+		init: function() {
+			this.score = 0;
+			this.speed = 230;
+		},
 			
-			create: function() {
-				// params: x, y, id, OPTIONAL: frame, group
-				var bg = this.add.image(0, 0, 'img_star_background');
-				bg.scale = { x: 2, y: 2 };
+		create: function() {
+			// params: x, y, id, OPTIONAL: frame, group
+			var bg = this.add.image(0, 0, 'img_star_background');
+			bg.scale = { x: 2, y: 2 };
 				
-				this.bullets = this.add.group();
-				this.bullets.enableBody = true;
-				this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
-				this.bullets.createMultiple(20, 'img_laser_red');
-				this.bullets.callAll(
-					'events.onOutOfBounds.add', 
-					'events.onOutOfBounds', 
-					function reset_bullet(bullet) {
-						bullet.kill();
-					}
-				);
-				this.bullets.callAll('anchor.setTo', 'anchor', 0.5, 1.0);
-				this.bullets.setAll('checkWorldBounds', true);
-				
-				this.lifes = this.add.group();
-				this.lifes.createMultiple(3, 'img_player');
-				this.lifes.setAll('scale', { x: 0.33, y: 0.33 });
-				for (var i = 0; i < this.lifes.children.length; i++) {
-				    if ( ! this.lifes.children[i].alive ) {
-						// console.log(this.lifes.children[i]);
-						// console.log(i);
-						
-						this.lifes.children[i].position.y = 8;
-						this.lifes.children[i].position.x = i * this.lifes.children[i].width + 10;
-						this.lifes.children[i].visible = true;
-					}
+			/** bullets **/ 
+			this.player_bullets = this.add.physicsGroup();
+			this.player_bullets.enableBody = true;
+			this.player_bullets.physicsBodyType = Phaser.Physics.ARCADE;
+			this.player_bullets.createMultiple(20, 'img_laser_red');
+			// this.player_bullets.setAll('outOfBoundsKill', true); // todo: check if this is a shortcut
+			this.player_bullets.callAll(
+				'events.onOutOfBounds.add', 
+				'events.onOutOfBounds', 
+				function reset_bullet(bullet) {
+					bullet.kill();
 				}
-				this.lifes.reverse();
+			);
+			this.player_bullets.callAll('anchor.setTo', 'anchor', 0.5, 1.0);
+			this.player_bullets.setAll('checkWorldBounds', true);
 				
-				this.player = this.add.sprite(200, 200, 'img_player');
-				this.player.scale = { x: 0.5, y: 0.5 };
-				this.physics.arcade.enable(this.player);
-				this.player.body.collideWorldBounds = true;
-				this.player.body.bounce.setTo(1, 1);
 				
-				// console.log(this.player.body)
-				// console.log(this.player)
+			/* player */
+			this.player = this.add.sprite(200, 200, 'img_player');
+			this.player.scale = { x: 0.5, y: 0.5 };
+			this.physics.arcade.enable(this.player);
+			this.player.body.collideWorldBounds = true;
+			this.player.body.bounce.setTo(1, 1);
+			this.player.has_collided = false;	
+			// console.log(this.player.body)
+			// console.log(this.player)
 				
-				this.enemy1 = this.add.sprite(100, 100, 'img_enemy1');
-				this.enemy1.scale = { x: 0.5, y: 0.5 };
-				this.physics.arcade.enable(this.enemy1);
-				this.enemy1.body.immovable = true;
 				
-				this.cursors = this.input.keyboard.createCursorKeys();
-			},
+			/** enemies **/
+			this.enemy3 = this.add.sprite(this.world.centerX, 0, 'img_enemy3');
+			this.enemy3.anchor = { x: 0.5, y: 0.5 };
+			this.enemy3.scale = { x: 4, y: 4 };
+			this.physics.arcade.enable(this.enemy3);
+			this.enemy3.body.immovable = true;
 			
-			update: function() {
-				
-				this.physics.arcade.collide(this.enemy1, this.player, function remove_player_life(ob1, ob2) {
-					// body...
-					if( ! ob2.hasCollided ) {
-						ob2.hasCollided = true;
+			this.enemy1 = this.add.sprite(100, 300, 'img_enemy1');
+			this.enemy1.scale = { x: 0.5, y: 0.5 };
+			this.physics.arcade.enable(this.enemy1);
+			this.enemy1.body.immovable = true;
+			
+			this.enemy2 = this.add.sprite(250, 350, 'img_enemy2');
+			this.enemy2.scale = { x: 0.5, y: 0.5 };
+			this.physics.arcade.enable(this.enemy2);
+			this.enemy2.body.immovable = true;
+			
+			/** life **/
+			this.lifes = this.add.group();
+			this.lifes.createMultiple(3, 'img_player');
+			this.lifes.setAll('scale', { x: 0.33, y: 0.33 });
+			for (var i = 0; i < this.lifes.children.length; i++) {
+				if ( ! this.lifes.children[i].alive ) {
+					// console.log(this.lifes.children[i]);
+					// console.log(i);
 						
-						if (this.lifes.length)
-						{
-							this.lifes.removeChildAt(0);
-							console.log(this.lifes.length);
-							// todo: kill player => game over scene
-						}
-						
-						var t = this.add.tween(ob2).to(
-							{ alpha: 0 }, // prop
-							200, // duration
-							"Linear", // ease
-							true, // autostar?
-							0, // delay ms
-							1, // repeat
-							true // yoyo?
-						);
-						
-						t.onComplete.add(function() {
-							ob2.hasCollided = false;
-						});
-					}
-				}, null, this);
+					this.lifes.children[i].position.y = 8;
+					this.lifes.children[i].position.x = i * this.lifes.children[i].width + 10;
+					this.lifes.children[i].visible = true;
+				}
+			}
+			this.lifes.reverse();
 				
-				if ( this.cursors.left.isDown || this.input.keyboard.isDown(Phaser.Keyboard.A) )
-			    {
-			        this.player.body.velocity.x = -this.speed;
-			    }
-			    else if ( this.cursors.right.isDown || this.input.keyboard.isDown(Phaser.Keyboard.D))
-			    {
-					this.player.body.velocity.x = this.speed;
-			    }
-
-			    if ( this.cursors.up.isDown || this.input.keyboard.isDown(Phaser.Keyboard.W))
-			    {
-					this.player.body.velocity.y = -this.speed;
-			    }
-			    else if ( this.cursors.down.isDown || this.input.keyboard.isDown(Phaser.Keyboard.S))
-			    {
-			        this.player.body.velocity.y = this.speed;
-			    }
+			this.cursors = this.input.keyboard.createCursorKeys();
+		}, // end create
+		
+		enemy_got_hit: function (enemy, bullets) {
+			
+			function bullet_hit_enemy(enemy, bullet) {
+				bullet.kill();
+			}
+			
+			return this.physics.arcade.collide(enemy, bullets, bullet_hit_enemy, null, this);
+		},
+		
+		player_got_hit_by: function (enemies) {
+			
+			function remove_player_life(enemy, player) {
 				
-				if (this.input.activePointer.isDown) {
-					this.is_mouse_down = true;
-					
-					// fire
-					if (this.game.time.now > this.next_fire) 
+				if( ! player.has_collided ) {
+					player.has_collided = true;
+						
+					if (this.lifes.length)
 					{
-						var bullet = this.bullets.getFirstExists(false);
-					
-						if (bullet) {
-							bullet.reset(
-								this.player.body.center.x, 
-								this.player.body.center.y
-							);
-							bullet.body.velocity.y = -500;
-						}
-						
-						this.next_fire = this.game.time.now + this.fire_rate;
+						this.lifes.removeChildAt(0);
+						console.log(this.lifes.length);
+						// todo: kill player => game over scene
 					}
-					
-				} 
-				else { // stop firing
-					this.is_mouse_down = false
+						
+					var t = this.add.tween(player).to(
+						{ alpha: 0 }, // prop
+						200, // duration
+						"Linear", // ease
+						true, // autostart?
+						0, // delay ms
+						1, // repeat
+						true // yoyo?
+					);
+						
+					t.onComplete.add(function() {
+						player.has_collided = false;
+					});
 				}
-			}, // end update
-			
-			render: function () {
-				// this.game.debug.text(this.game.time.now, 10, 30);
-				// this.game.debug.text(this.next_fire, 10, 50);
-				
-				// this.game.debug.body(this.player);
-			    this.game.debug.body(this.enemy1);
 			}
 			
+			for (var i = enemies.length - 1; i >= 0; i--) {
+				
+				this.physics.arcade.collide(enemies[i], this.player, remove_player_life, null, this);
+			}
 			
-		};
+			return this.player.has_collided;
+		},
+			
+		update: function() {
+			this.enemy3.angle += 1;
+			/** collisions **/
+			
+			if ( this.enemy_got_hit(this.enemy1, this.player_bullets) )
+			{
+				console.log('boom');
+			}
+			
+			if ( this.enemy_got_hit(this.enemy2, this.player_bullets) )
+			{
+				console.log('boom');
+			}
+			
+			if ( this.enemy_got_hit(this.enemy3, this.player_bullets) )
+			{
+				console.log('boom');
+			}
+			
+			this.player_got_hit_by([this.enemy1, this.enemy2, this.enemy3]);
+			
+			/** player moves **/
+			
+			if ( this.cursors.left.isDown || this.input.keyboard.isDown(Phaser.Keyboard.A) )
+			{
+				this.player.body.velocity.x = -this.speed;
+			}
+			else if ( this.cursors.right.isDown || this.input.keyboard.isDown(Phaser.Keyboard.D))
+			{
+				this.player.body.velocity.x = this.speed;
+			}
+
+			if ( this.cursors.up.isDown || this.input.keyboard.isDown(Phaser.Keyboard.W))
+			{
+				this.player.body.velocity.y = -this.speed;
+			}
+			else if ( this.cursors.down.isDown || this.input.keyboard.isDown(Phaser.Keyboard.S))
+			{
+				this.player.body.velocity.y = this.speed;
+			}
+			
+			/** player fire **/
+			
+			if (this.input.activePointer.isDown || this.input.keyboard.isDown(Phaser.Keyboard.ENTER)) {
+				this.is_player_firing = true;
+					
+				// fire
+				if (this.game.time.now > this.next_fire) 
+				{
+					var bullet = this.player_bullets.getFirstExists(false);
+					
+					if (bullet) {
+						bullet.reset(
+							this.player.body.center.x, 
+							this.player.body.center.y
+						);
+						bullet.body.velocity.y = -500;
+					}
+						
+					this.next_fire = this.game.time.now + this.fire_rate;
+				}
+					
+			} 
+			else { // stop firing
+				this.is_player_firing = false
+			}
+		}, // end update
+			
+		render: function () {
+			// this.game.debug.text(this.game.time.now, 10, 30);
+			// this.game.debug.text(this.next_fire, 10, 50);
+				
+			// this.game.debug.body(this.player);
+			
+			this.game.debug.text('this.player.has_collided: ' + this.player.has_collided, 10, 60);
+			this.game.debug.body(this.enemy1);
+			this.game.debug.body(this.enemy2);
+			this.game.debug.body(this.enemy3);
+		}
+			
+			
+	};
 		
-		// x, y
-        var global_game = new Phaser.Game(254 * 2, 256 * 2); // 254x256 is bg size
+	// x, y
+	var global_game = new Phaser.Game(254 * 2, 256 * 2); // 254x256 is bg size
 		
-		// params: key, state, autostart?
-		global_game.state.add('PRELOADER', Videogame.Preloader, false);
-		global_game.state.add('MENU', Videogame.Screen_Menu, false);
-		global_game.state.add('GAME', Videogame.Screen_Game, false);
+	// params: key, state, autostart?
+	global_game.state.add('PRELOADER', Videogame.Preloader, false);
+	global_game.state.add('MENU', Videogame.Screen_Menu, false);
+	global_game.state.add('GAME', Videogame.Screen_Game, false);
 		
-		global_game.state.start('PRELOADER');
+	global_game.state.start('PRELOADER');
 		
 
-        </script>
+	</script>
 
-    </body>
+</body>
 </html>
