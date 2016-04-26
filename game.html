@@ -17,13 +17,16 @@
 
 		Videogame.Preloader.prototype = {
 		    preload: function () {
-
 		        this.load.path = 'assets/';
-
 		        this.load.bitmapFont('test-font');
-
-		        this.load.images([ 'logo', 'star_background', 'player' ]);
-
+		        this.load.images([
+					'img_logo', 
+					'img_star_background', 
+					'img_player', 
+					'img_laser_red'
+				]);
+				
+				this.physics.startSystem(Phaser.Physics.ARCADE);
 		    },
 
 		    create: function () {
@@ -40,13 +43,13 @@
 		Videogame.Screen_Menu.prototype = {
 			create: function () {
 						   // params: x, y, id, OPTIONAL: frame, group
-				var bg = this.add.image(0, 0, 'star_background');
+				var bg = this.add.image(0, 0, 'img_star_background');
 				bg.scale = { x: 2, y: 2 }
 				
 				var logo = this.add.image(
 					this.world.centerX, 
 					140, 
-					'logo'
+					'img_logo'
 				);
 				
 				logo.anchor.x = 0.5;
@@ -77,21 +80,59 @@
 		    this.score = 0;
 		    this.scoreText = null;
 		    this.speed = 0;
+			this.is_mouse_down = false;
+			
+			this.next_fire = 0;
+			this.bullet_speed = 600;
+			this.fire_rate = 100;
 		};
 		
 		Videogame.Screen_Game.prototype = {
 			init: function() {
 		        this.score = 0;
-		        this.speed = 0;
+		        this.speed = 230;
 			},
 			
 			create: function() {
 				// params: x, y, id, OPTIONAL: frame, group
-				var bg = this.add.image(0, 0, 'star_background');
+				var bg = this.add.image(0, 0, 'img_star_background');
 				bg.scale = { x: 2, y: 2 };
 				
-				this.player = this.add.sprite(200, 200, 'player');
+				this.bullets = this.add.group();
+				this.bullets.enableBody = true;
+				this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
+				this.bullets.createMultiple(20, 'img_laser_red');
+				this.bullets.callAll(
+					'events.onOutOfBounds.add', 
+					'events.onOutOfBounds', 
+					function reset_bullet(bullet) {
+						bullet.kill();
+					}
+				);
+				this.bullets.callAll('anchor.setTo', 'anchor', 0.5, 1.0);
+				this.bullets.setAll('checkWorldBounds', true);
+				
+				this.lifes = this.add.group();
+				this.lifes.createMultiple(3, 'img_player');
+				this.lifes.setAll('scale', { x: 0.33, y: 0.33 });
+				for (var i = 0; i < this.lifes.children.length; i++) {
+				    if ( ! this.lifes.children[i].alive ) {
+						console.log(this.lifes.children[i]);
+						console.log(i);
+						
+						this.lifes.children[i].position.y = 8;
+						this.lifes.children[i].position.x = i * this.lifes.children[i].width + 10;
+						this.lifes.children[i].visible = true;
+					}
+				}
+				
+				this.player = this.add.sprite(200, 200, 'img_player');
 				this.player.scale = { x: 0.5, y: 0.5 };
+				this.physics.arcade.enable(this.player);
+				this.player.body.collideWorldBounds = true;
+				
+				// console.log(this.player.body)
+				// console.log(this.player)
 				
 				this.cursors = this.input.keyboard.createCursorKeys();
 			},
@@ -100,22 +141,53 @@
 				
 				if (this.cursors.left.isDown)
 			    {
-			        this.player.x -= 10;
+			        this.player.body.velocity.x = -this.speed;
 			    }
 			    else if (this.cursors.right.isDown)
 			    {
-			        this.player.x += 10;
+					this.player.body.velocity.x = this.speed;
 			    }
 
 			    if (this.cursors.up.isDown)
 			    {
-			        this.player.y -= 10;
+					this.player.body.velocity.y = -this.speed;
 			    }
 			    else if (this.cursors.down.isDown)
 			    {
-			        this.player.y += 10;
+			        this.player.body.velocity.y = this.speed;
 			    }
+				
+				if (this.input.activePointer.isDown) {
+					this.is_mouse_down = true;
+					
+					// fire
+					if (this.game.time.now > this.next_fire) 
+					{
+						var bullet = this.bullets.getFirstExists(false);
+					
+						if (bullet) {
+							bullet.reset(
+								this.player.body.center.x, 
+								this.player.body.center.y
+							);
+							bullet.body.velocity.y = -500;
+						}
+						
+						this.next_fire = this.game.time.now + this.fire_rate;
+					}
+					
+				} 
+				else { // stop firing
+					this.is_mouse_down = false
+				}
+			}, // end update
+			
+			render: function () {
+				// this.game.debug.text(this.game.time.now, 10, 30);
+				// this.game.debug.text(this.next_fire, 10, 50);
 			}
+			
+			
 		};
 		
 		// x, y
