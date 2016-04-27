@@ -24,6 +24,7 @@
 				'img_star_background', 
 				'img_player', 
 				'img_laser_red',
+				'img_laser_green',
 				'img_enemy1',
 				'img_enemy2',
 				'img_enemy3'
@@ -85,7 +86,8 @@
 		this.speed = 0;
 		this.is_player_firing = false;
 			
-		this.next_fire = 0;
+		this.next_fire_player = 0;
+		this.next_fire_enemy2 = 0;
 		this.bullet_speed = 600;
 		this.fire_rate = 100;
 	};
@@ -95,36 +97,45 @@
 			this.score = 0;
 			this.speed = 230;
 		},
+		setup_bullets: function (image_name) {
+			b = this.add.physicsGroup();
 			
-		create: function() {
-			// params: x, y, id, OPTIONAL: frame, group
-			var bg = this.add.image(0, 0, 'img_star_background');
-			bg.scale = { x: 2, y: 2 };
-				
-			/** bullets **/ 
-			this.player_bullets = this.add.physicsGroup();
-			this.player_bullets.enableBody = true;
-			this.player_bullets.physicsBodyType = Phaser.Physics.ARCADE;
-			this.player_bullets.createMultiple(20, 'img_laser_red');
-			// this.player_bullets.setAll('outOfBoundsKill', true); // todo: check if this is a shortcut
-			this.player_bullets.callAll(
+			b.enableBody = true;
+			b.physicsBodyType = Phaser.Physics.ARCADE;
+			b.createMultiple(20, image_name);
+			// b.setAll('outOfBoundsKill', true); // todo: check if this is a shortcut
+			b.callAll(
 				'events.onOutOfBounds.add', 
 				'events.onOutOfBounds', 
 				function reset_bullet(bullet) {
 					bullet.kill();
 				}
 			);
-			this.player_bullets.callAll('anchor.setTo', 'anchor', 0.5, 1.0);
-			this.player_bullets.setAll('checkWorldBounds', true);
+			b.callAll('anchor.setTo', 'anchor', 0.5, 0.5);
+			b.setAll('checkWorldBounds', true);
+			
+			return b;
+		},
+			
+		create: function() {
+			// params: x, y, id, OPTIONAL: frame, group
+			var bg = this.add.image(0, 0, 'img_star_background');
+			bg.scale = { x: 2, y: 2 };
 				
-				
+			/** player_bullets **/ 
+			this.player_bullets = this.setup_bullets('img_laser_red');
+			
+			/** enemy_bullets **/
+			this.enemy_bullets = this.setup_bullets('img_laser_green');
+			
 			/* player */
 			this.player = this.add.sprite(200, 200, 'img_player');
 			this.player.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.player);
 			this.player.body.collideWorldBounds = true;
-			this.player.body.bounce.setTo(1, 1);
-			this.player.has_collided = false;	
+			// this.player.body.immovable = true;
+			// this.player.body.bounce.setTo(1, 1);
+			this.player.has_collided = false;
 			// console.log(this.player.body)
 			// console.log(this.player)
 				
@@ -136,12 +147,13 @@
 			this.physics.arcade.enable(this.enemy3);
 			this.enemy3.body.immovable = true;
 			
-			this.enemy1 = this.add.sprite(100, 300, 'img_enemy1');
+			this.enemy1 = this.add.sprite(0, 0, 'img_enemy1');
+			this.enemy1.anchor = { x: 0, y: 0 };
 			this.enemy1.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.enemy1);
 			this.enemy1.body.immovable = true;
 			
-			this.enemy2 = this.add.sprite(250, 350, 'img_enemy2');
+			this.enemy2 = this.add.sprite(50, 50, 'img_enemy2');
 			this.enemy2.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.enemy2);
 			this.enemy2.body.immovable = true;
@@ -211,6 +223,63 @@
 			
 			return this.player.has_collided;
 		},
+		
+		fire_bullets_by_character: function (bullets_group, character) {
+			
+			var bullet = bullets_group.getFirstExists(false);
+				
+			if (bullet) {
+				bullet.reset(
+					character.body.center.x, 
+					character.body.center.y
+				);
+				bullet.body.velocity.y = -500;
+			}
+		},
+		
+		fire_follow_bullets_by_character: function (bullets_group, origin, target) {
+			
+			var bullet = bullets_group.getFirstExists(false);
+				
+			if (bullet) {
+				bullet.reset(
+					origin.body.center.x, 
+					origin.body.center.y
+				);
+			}
+			
+			// http://gamemechanicexplorer.com/#homingmissiles-1
+			var targetAngle = this.game.math.angleBetween(
+				bullet.x, bullet.y,
+				target.x, target.y
+			);
+				
+			// Gradually (this.TURN_RATE) aim the missile towards the target angle
+			if (bullet.rotation !== targetAngle) {
+				// Calculate difference between the current angle and targetAngle
+				var delta = targetAngle - bullet.rotation;
+
+				// Keep it in range from -180 to 180 to make the most efficient turns.
+				if (delta > Math.PI) delta -= Math.PI * 2;
+				if (delta < -Math.PI) delta += Math.PI * 2;
+
+				// if (delta > 0) {
+// 					// Turn clockwise
+// 					bullet.angle += 50;
+// 				} else {
+// 					// Turn counter-clockwise
+// 					bullet.angle -= 50;
+// 				}
+
+				// Just set angle to target angle if they are close
+				if (Math.abs(delta) < this.game.math.degToRad(50)) {
+					bullet.rotation = targetAngle;
+				}
+			}
+			
+		    bullet.body.velocity.x = Math.cos(bullet.rotation) * 400;
+	       	bullet.body.velocity.y = Math.sin(bullet.rotation) * 400;
+		},
 			
 		update: function() {
 			this.enemy3.angle += 1;
@@ -257,39 +326,50 @@
 			
 			if (this.input.activePointer.isDown || this.input.keyboard.isDown(Phaser.Keyboard.ENTER)) {
 				this.is_player_firing = true;
-					
-				// fire
-				if (this.game.time.now > this.next_fire) 
+				
+				if (this.game.time.now > this.next_fire_player) 
 				{
-					var bullet = this.player_bullets.getFirstExists(false);
-					
-					if (bullet) {
-						bullet.reset(
-							this.player.body.center.x, 
-							this.player.body.center.y
-						);
-						bullet.body.velocity.y = -500;
-					}
-						
-					this.next_fire = this.game.time.now + this.fire_rate;
+					this.fire_bullets_by_character(this.player_bullets, this.player);
+					this.next_fire_player = this.game.time.now + this.fire_rate;
 				}
-					
 			} 
 			else { // stop firing
 				this.is_player_firing = false
+			}
+			
+			/** enemy2 fire **/
+			
+			if (this.game.time.now > this.next_fire_enemy2)
+			{
+				this.fire_follow_bullets_by_character(this.enemy_bullets, this.enemy2, this.player);
+				this.next_fire_enemy2 = this.game.time.now + 500;
+			}
+			
+			/** enemy1 movement **/
+			var distance = this.game.math.distance(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
+			
+			if (distance > 20) { // 100px around player
+				// Calculate the angle to the target
+				var rotation = this.game.math.angleBetween(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
+
+				// Calculate velocity vector based on rotation and speed = 200
+				this.enemy1.body.velocity.x = Math.cos(rotation) * 200;
+				this.enemy1.body.velocity.y = Math.sin(rotation) * 200;
+			} else {
+				this.enemy1.body.velocity.setTo(0, 0);
 			}
 		}, // end update
 			
 		render: function () {
 			// this.game.debug.text(this.game.time.now, 10, 30);
-			// this.game.debug.text(this.next_fire, 10, 50);
+			// this.game.debug.text(this.next_fire_player, 10, 50);
 				
 			// this.game.debug.body(this.player);
 			
 			this.game.debug.text('this.player.has_collided: ' + this.player.has_collided, 10, 60);
-			this.game.debug.body(this.enemy1);
-			this.game.debug.body(this.enemy2);
-			this.game.debug.body(this.enemy3);
+			// this.game.debug.body(this.enemy1);
+// 			this.game.debug.body(this.enemy2);
+// 			this.game.debug.body(this.enemy3);
 		}
 			
 			
