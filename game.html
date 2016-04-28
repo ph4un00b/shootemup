@@ -65,6 +65,9 @@
 				'PRESS \'ENTER\' TO PLAY', 
 				40 // px
 			);
+			
+			// console.log(this.game.width);
+			// console.log(this.game.height);
 					
 			start.anchor.x = 0.5;
 			start.anchor.y = 0.5;
@@ -83,7 +86,7 @@
 	Videogame.Screen_Game = function screen_game() {
 		this.score = 0;
 		this.scoreText = null;
-		this.speed = 0;
+		this.player_speed = 0;
 		this.is_player_firing = false;
 			
 		this.next_fire_player = 0;
@@ -95,13 +98,13 @@
 	Videogame.Screen_Game.prototype = {
 		init: function() {
 			this.score = 0;
-			this.speed = 230;
+			this.player_speed = 230;
 		},
 		setup_bullets: function (image_name) {
 			b = this.add.physicsGroup();
 			
 			b.enableBody = true;
-			b.physicsBodyType = Phaser.Physics.ARCADE;
+			// b.physicsBodyType = Phaser.Physics.ARCADE;
 			b.createMultiple(20, image_name);
 			// b.setAll('outOfBoundsKill', true); // todo: check if this is a shortcut
 			b.callAll(
@@ -127,6 +130,7 @@
 			
 			/** enemy_bullets **/
 			this.enemy_bullets = this.setup_bullets('img_laser_green');
+			console.log(this.enemy_bullets)
 			
 			/* player */
 			this.player = this.add.sprite(200, 200, 'img_player');
@@ -135,10 +139,10 @@
 			this.player.body.collideWorldBounds = true;
 			// this.player.body.immovable = true;
 			// this.player.body.bounce.setTo(1, 1);
-			this.player.has_collided = false;
+			this.player.__has_collided = false;
+			this.player.__can_shoot = true;
 			// console.log(this.player.body)
 			// console.log(this.player)
-				
 				
 			/** enemies **/
 			this.enemy3 = this.add.sprite(this.world.centerX, 0, 'img_enemy3');
@@ -146,17 +150,22 @@
 			this.enemy3.scale = { x: 4, y: 4 };
 			this.physics.arcade.enable(this.enemy3);
 			this.enemy3.body.immovable = true;
+			this.enemy3.__life = 80;
 			
-			this.enemy1 = this.add.sprite(0, 0, 'img_enemy1');
+			this.enemy1 = this.add.sprite(this.game.rnd.integerInRange(0,this.game.width), 0, 'img_enemy1');
 			this.enemy1.anchor = { x: 0, y: 0 };
-			this.enemy1.scale = { x: 0.5, y: 0.5 };
+			this.enemy1.scale = { x: 0.4, y: 0.4 };
 			this.physics.arcade.enable(this.enemy1);
 			this.enemy1.body.immovable = true;
+			// console.log(this.enemy1);
+			this.enemy1.__life = 30;
 			
 			this.enemy2 = this.add.sprite(50, 50, 'img_enemy2');
 			this.enemy2.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.enemy2);
 			this.enemy2.body.immovable = true;
+			this.enemy2.__life = 50;
+			console.log(this.enemy1)
 			
 			/** life **/
 			this.lifes = this.add.group();
@@ -186,42 +195,78 @@
 			return this.physics.arcade.collide(enemy, bullets, bullet_hit_enemy, null, this);
 		},
 		
-		player_got_hit_by: function (enemies) {
+		enemy_bullet_got_hit: function (enemy, bullets) {
 			
-			function remove_player_life(enemy, player) {
-				
-				if( ! player.has_collided ) {
-					player.has_collided = true;
-						
-					if (this.lifes.length)
-					{
-						this.lifes.removeChildAt(0);
-						console.log(this.lifes.length);
-						// todo: kill player => game over scene
-					}
-						
-					var t = this.add.tween(player).to(
-						{ alpha: 0 }, // prop
-						200, // duration
-						"Linear", // ease
-						true, // autostart?
-						0, // delay ms
-						1, // repeat
-						true // yoyo?
-					);
-						
-					t.onComplete.add(function() {
-						player.has_collided = false;
-					});
-				}
+			function bullet_hit_enemy(enemy, bullet) {
+				bullet.kill();
+				enemy.kill();
 			}
+			
+			return this.physics.arcade.collide(enemy, bullets, bullet_hit_enemy, null, this);
+		},
+		
+		player_got_hit_by_bullet: function (bullets) {
+			
+			function bullet_hit_enemy(player, bullet) {
+				bullet.kill();
+				this.remove_player_life_actions(bullet, player);
+			}
+			
+			return this.physics.arcade.collide(this.player, bullets, bullet_hit_enemy, null, this);
+		},
+		
+		player_remove_life: function () {
+			if (this.lifes.length)
+			{
+				this.lifes.removeChildAt(0);
+				console.log(this.lifes.length);
+				
+				// todo: kill player => game over scene
+			}
+			else
+			{
+				console.log('kill player')
+				this.player.kill();
+			}
+		},
+		player_flickering: function () {
+			var self = this;
+			var t = this.add.tween(this.player).to(
+				{ alpha: 0 }, // prop
+				300, // duration
+				"Linear", // ease
+				true, // autostart?
+				0, // delay ms
+				1, // repeat
+				true // yoyo?
+			);
+				
+			t.onComplete.add(function() {
+				self.player.__has_collided = false;
+				self.player_speed = 230;
+				self.player.__can_shoot = true;
+			});
+		},
+		remove_player_life_actions: function (enemy, player) {
+			if( ! player.__has_collided ) {
+				player.__has_collided = true;
+				player.__can_shoot = false;
+				this.player_speed = 600;
+				
+				this.player_remove_life();
+				this.player_flickering();
+				
+			}
+		},
+		
+		player_got_hit_by: function (enemies) {
 			
 			for (var i = enemies.length - 1; i >= 0; i--) {
 				
-				this.physics.arcade.collide(enemies[i], this.player, remove_player_life, null, this);
+				this.physics.arcade.collide(enemies[i], this.player, this.remove_player_life_actions, null, this);
 			}
 			
-			return this.player.has_collided;
+			return this.player.__has_collided;
 		},
 		
 		fire_bullets_by_character: function (bullets_group, character) {
@@ -237,7 +282,7 @@
 			}
 		},
 		
-		fire_follow_bullets_by_character: function (bullets_group, origin, target) {
+		fire_follow_bullets_by_character: function (bullets_group, origin, target, speed) {
 			
 			var bullet = bullets_group.getFirstExists(false);
 				
@@ -260,39 +305,84 @@
 				var delta = targetAngle - bullet.rotation;
 
 				// Keep it in range from -180 to 180 to make the most efficient turns.
-				if (delta > Math.PI) delta -= Math.PI * 2;
-				if (delta < -Math.PI) delta += Math.PI * 2;
+				if (delta > Math.PI)
+				{
+					delta -= Math.PI * 2;
+				}
+				
+				if (delta < -Math.PI)
+				{
+					delta += Math.PI * 2;
+				}
 
-				// if (delta > 0) {
-// 					// Turn clockwise
-// 					bullet.angle += 50;
-// 				} else {
-// 					// Turn counter-clockwise
-// 					bullet.angle -= 50;
-// 				}
+				if (delta > 0) {
+					// Turn clockwise
+					bullet.angle += 50;
+				} else {
+					// Turn counter-clockwise
+					bullet.angle -= 50;
+				}
 
 				// Just set angle to target angle if they are close
-				if (Math.abs(delta) < this.game.math.degToRad(50)) {
+				if (Math.abs(delta) < this.game.math.degToRad(100)) 
+				{
 					bullet.rotation = targetAngle;
 				}
+				
+				bullet.body.velocity.x = Math.cos(bullet.rotation) * (speed || 400);
+				bullet.body.velocity.y = Math.sin(bullet.rotation) * (speed || 400);
 			}
 			
-		    bullet.body.velocity.x = Math.cos(bullet.rotation) * 400;
-	       	bullet.body.velocity.y = Math.sin(bullet.rotation) * 400;
+			
 		},
 			
 		update: function() {
-			this.enemy3.angle += 1;
+			this.enemy3.kill();
+			// this.enemy2.kill();
+			this.enemy1.kill();
+					
+			// this.enemy_bullets.removeAll();
+					
+			
+			if (this.enemy2.__life && this.enemy2.alive)
+			{
+				var rotation = this.game.math.angleBetween(this.enemy2.x, this.enemy2.y, this.player.x, this.player.y);
+				this.enemy2.body.velocity.x = Math.cos(rotation) * 400;
+			}
+			
+			
 			/** collisions **/
+			
+			if( this.player_got_hit_by_bullet(this.enemy_bullets) )
+			{
+
+			} 
+			
+			if( this.player_got_hit_by([this.enemy1, this.enemy2, this.enemy3]) )
+			{
+
+			} 
+			
+			if ( this.enemy_bullet_got_hit(this.enemy_bullets, this.player_bullets) )
+			{
+				
+			}
 			
 			if ( this.enemy_got_hit(this.enemy1, this.player_bullets) )
 			{
-				console.log('boom');
+				if( ! --this.enemy1.__life)
+				{
+					this.enemy1.kill();
+				}
 			}
 			
 			if ( this.enemy_got_hit(this.enemy2, this.player_bullets) )
 			{
-				console.log('boom');
+				if( ! --this.enemy2.__life)
+				{
+					this.enemy2.kill();
+					this.enemy_bullets.removeAll();
+				}
 			}
 			
 			if ( this.enemy_got_hit(this.enemy3, this.player_bullets) )
@@ -300,46 +390,57 @@
 				console.log('boom');
 			}
 			
-			this.player_got_hit_by([this.enemy1, this.enemy2, this.enemy3]);
 			
 			/** player moves **/
 			
 			if ( this.cursors.left.isDown || this.input.keyboard.isDown(Phaser.Keyboard.A) )
 			{
-				this.player.body.velocity.x = -this.speed;
+				this.player.body.velocity.x = -this.player_speed;
 			}
 			else if ( this.cursors.right.isDown || this.input.keyboard.isDown(Phaser.Keyboard.D))
 			{
-				this.player.body.velocity.x = this.speed;
+				this.player.body.velocity.x = this.player_speed;
 			}
 
 			if ( this.cursors.up.isDown || this.input.keyboard.isDown(Phaser.Keyboard.W))
 			{
-				this.player.body.velocity.y = -this.speed;
+				this.player.body.velocity.y = -this.player_speed;
 			}
 			else if ( this.cursors.down.isDown || this.input.keyboard.isDown(Phaser.Keyboard.S))
 			{
-				this.player.body.velocity.y = this.speed;
+				this.player.body.velocity.y = this.player_speed;
 			}
 			
 			/** player fire **/
 			
-			if (this.input.activePointer.isDown || this.input.keyboard.isDown(Phaser.Keyboard.ENTER)) {
-				this.is_player_firing = true;
+			if (this.player.__can_shoot)
+			{
+				if (this.input.activePointer.isDown || this.input.keyboard.isDown(Phaser.Keyboard.ENTER)) {
+					this.is_player_firing = true;
 				
-				if (this.game.time.now > this.next_fire_player) 
-				{
-					this.fire_bullets_by_character(this.player_bullets, this.player);
-					this.next_fire_player = this.game.time.now + this.fire_rate;
+					if (this.game.time.now > this.next_fire_player) 
+					{
+						this.fire_bullets_by_character(this.player_bullets, this.player);
+						this.next_fire_player = this.game.time.now + this.fire_rate;
+					}
+				} 
+				else { // stop firing
+					this.is_player_firing = false
 				}
-			} 
-			else { // stop firing
-				this.is_player_firing = false
 			}
 			
+					
+			/** enemy3 fire **/
+			
+			if ( (this.game.time.now > this.next_fire_enemy2) && this.enemy3.__life && this.enemy3.alive )
+			{
+				this.fire_follow_bullets_by_character(this.enemy_bullets, this.enemy3, this.player, 800);
+				this.next_fire_enemy2 = this.game.time.now + 800;
+			}
+					
 			/** enemy2 fire **/
 			
-			if (this.game.time.now > this.next_fire_enemy2)
+			if ( (this.game.time.now > this.next_fire_enemy2) && this.enemy2.__life && this.enemy2.alive )
 			{
 				this.fire_follow_bullets_by_character(this.enemy_bullets, this.enemy2, this.player);
 				this.next_fire_enemy2 = this.game.time.now + 500;
@@ -348,7 +449,7 @@
 			/** enemy1 movement **/
 			var distance = this.game.math.distance(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
 			
-			if (distance > 20) { // 100px around player
+			if (distance > 20) { // 20px around player
 				// Calculate the angle to the target
 				var rotation = this.game.math.angleBetween(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
 
@@ -361,15 +462,21 @@
 		}, // end update
 			
 		render: function () {
+			/** debug stuff **/
+			
 			// this.game.debug.text(this.game.time.now, 10, 30);
 			// this.game.debug.text(this.next_fire_player, 10, 50);
 				
 			// this.game.debug.body(this.player);
 			
-			this.game.debug.text('this.player.has_collided: ' + this.player.has_collided, 10, 60);
+			this.game.debug.text('this.player.__has_collided: ' + this.player.__has_collided, 10, 60);
+			this.game.debug.text('this.enemy1.__life: ' + this.enemy1.__life, 10, 80);
+			this.game.debug.text('this.player_speed: ' + this.player_speed, 10, 100);
+			this.game.debug.text('this.lifes.length: ' + this.lifes.length, 10, 120);
+			this.game.debug.text('this.enemy2.__life: ' + this.enemy2.__life, 10, 140);
 			// this.game.debug.body(this.enemy1);
-// 			this.game.debug.body(this.enemy2);
-// 			this.game.debug.body(this.enemy3);
+			// 			this.game.debug.body(this.enemy2);
+			// 			this.game.debug.body(this.enemy3);
 		}
 			
 			
