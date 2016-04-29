@@ -239,14 +239,14 @@
 			this.physics.arcade.enable(this.enemy1);
 			this.enemy1.body.immovable = true;
 			// console.log(this.enemy1);
-			this.enemy1.__life = 3;
+			this.enemy1.__life = 30;
 			
 			
 			this.enemy2 = this.add.sprite(50, 50, 'img_enemy2');
 			this.enemy2.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.enemy2);
 			this.enemy2.body.immovable = true;
-			this.enemy2.__life = 5;
+			this.enemy2.__life = 50;
 			this.enemy2.kill();
 			// console.log(this.enemy1)
 			
