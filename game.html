@@ -50,13 +50,24 @@
 			var bg = this.add.image(0, 0, 'img_star_background');
 			bg.scale = { x: 2, y: 2 }
 				
-			var logo = this.add.image(
+			this.logo = this.add.image(
 				this.world.centerX, 
 				140, 
 				'img_logo'
 			);
 				
-			logo.anchor.x = 0.5;
+			this.logo.anchor.x = 0.5;
+			this.logo.anchor.y = 0.5;
+			
+			var title = this.add.bitmapText(
+				this.world.centerX, 
+				190, 
+				'test-font', 
+				'SHOOT \'EM UP!', 
+				50 // px
+			);
+			
+			title.anchor.x = 0.5;
 				
 			var start = this.add.bitmapText(
 				this.world.centerX, 
@@ -66,18 +77,63 @@
 				40 // px
 			);
 			
+			var start2 = this.add.bitmapText(
+				this.world.centerX, 
+				start.y + 44, 
+				'test-font', 
+				'PRESS \'1\' to play with enemy 1', 
+				30 // px
+			);
+			
+			var start3 = this.add.bitmapText(
+				this.world.centerX, 
+				start2.y + 44, 
+				'test-font', 
+				'PRESS \'2\' to play with enemy 2', 
+				30 // px
+			);
+			
+			var start4 = this.add.bitmapText(
+				this.world.centerX, 
+				start3.y + 44, 
+				'test-font', 
+				'PRESS \'3\' to play with enemy 3', 
+				30 // px
+			);
 			// console.log(this.game.width);
 			// console.log(this.game.height);
 					
-			start.anchor.x = 0.5;
-			start.anchor.y = 0.5;
+			start.anchor.x = 0.5; start.anchor.y = 0.5;
+			start2.anchor.x = 0.5; start2.anchor.y = 0.5;
+			start3.anchor.x = 0.5; start3.anchor.y = 0.5;
+			start4.anchor.x = 0.5; start4.anchor.y = 0.5;
+			
 			start.smoothed = false;
 			start.tint = 0xffffff;
 				
 			var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+			var key_1 = this.input.keyboard.addKey(Phaser.Keyboard.ONE);
+			var key_2 = this.input.keyboard.addKey(Phaser.Keyboard.TWO);
+			var key_3 = this.input.keyboard.addKey(Phaser.Keyboard.THREE);
+
 			enter_key.onDown.addOnce(function start_game() {
 				this.state.start('GAME');
 			}, this);
+			
+			key_1.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 1 });
+			}, this);
+			
+			key_2.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 2 });
+			}, this);
+			
+			key_3.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 3 });
+			}, this);
+		},
+		update:  function () {
+			this.logo.angle += 1;
 		}
 	};
 		
@@ -96,7 +152,31 @@
 	};
 		
 	Videogame.Screen_Game.prototype = {
-		init: function() {
+		init: function(data) {
+			
+			this.just_enemy_1 = false; 
+			this.just_enemy_2 = false;
+			this.just_enemy_3 = false;
+			
+			if (data)
+			{
+				if (data.enemy === 1)
+				{
+					this.just_enemy_1 = true;
+				}
+			
+				if (data.enemy === 2)
+				{
+					this.just_enemy_2 = true;
+				}
+			
+				if (data.enemy === 3)
+				{
+					this.just_enemy_3 = true;
+				}
+			}
+			
+			
 			this.score = 0;
 			this.player_speed = 230;
 		},
@@ -143,7 +223,7 @@
 			this.player.__can_shoot = true;
 			// console.log(this.player.body)
 			// console.log(this.player)
-				
+			var self = this;
 			/** enemies **/
 			this.enemy3 = this.add.sprite(this.world.centerX, 0, 'img_enemy3');
 			this.enemy3.anchor = { x: 0.5, y: 0.5 };
@@ -151,6 +231,7 @@
 			this.physics.arcade.enable(this.enemy3);
 			this.enemy3.body.immovable = true;
 			this.enemy3.__life = 80;
+			this.enemy3.kill();
 			
 			this.enemy1 = this.add.sprite(this.game.rnd.integerInRange(0,this.game.width), 0, 'img_enemy1');
 			this.enemy1.anchor = { x: 0, y: 0 };
@@ -158,14 +239,43 @@
 			this.physics.arcade.enable(this.enemy1);
 			this.enemy1.body.immovable = true;
 			// console.log(this.enemy1);
-			this.enemy1.__life = 30;
+			this.enemy1.__life = 3;
+			
 			
 			this.enemy2 = this.add.sprite(50, 50, 'img_enemy2');
 			this.enemy2.scale = { x: 0.5, y: 0.5 };
 			this.physics.arcade.enable(this.enemy2);
 			this.enemy2.body.immovable = true;
-			this.enemy2.__life = 50;
-			console.log(this.enemy1)
+			this.enemy2.__life = 5;
+			this.enemy2.kill();
+			// console.log(this.enemy1)
+			
+			
+			this.enemy1.events.onKilled.add(function spawn_enemy2() {
+				self.enemy2.reset(50,50);
+			});
+			
+			this.enemy2.events.onKilled.add(function spawn_enemy3() {
+				self.enemy3.reset(self.world.centerX, 0);
+			});
+			
+			this.enemy3.events.onKilled.add(function goto_win_stage() {
+				console.log('win, score')
+				self.state.start('VICTORY', true, false, { score: self.score });
+			});
+			
+			this.player.events.onKilled.add(function goto_gameover_state() {
+				console.log('you died')
+				self.state.start('GAMEOVER');
+			});
+			
+			this.score_text = this.add.bitmapText(
+				10, 
+				480, 
+				'test-font', 
+				'SCORE: ' + this.score, 
+				30 // px
+			);
 			
 			/** life **/
 			this.lifes = this.add.group();
@@ -337,13 +447,21 @@
 		},
 			
 		update: function() {
-			this.enemy3.kill();
-			// this.enemy2.kill();
-			this.enemy1.kill();
-					
-			// this.enemy_bullets.removeAll();
-					
 			
+			/** debug enemies **/
+			if (this.just_enemy_2)
+			{
+				this.enemy1.kill();
+			}
+			
+			if (this.just_enemy_3)
+			{
+				this.enemy1.kill();
+				this.enemy2.kill();
+			}	
+			
+			
+			/** enemy2 movement **/
 			if (this.enemy2.__life && this.enemy2.alive)
 			{
 				var rotation = this.game.math.angleBetween(this.enemy2.x, this.enemy2.y, this.player.x, this.player.y);
@@ -353,41 +471,46 @@
 			
 			/** collisions **/
 			
-			if( this.player_got_hit_by_bullet(this.enemy_bullets) )
+			if ( this.player_got_hit_by_bullet(this.enemy_bullets) )
 			{
-
-			} 
+				this.score -= 10000;
+			}
 			
-			if( this.player_got_hit_by([this.enemy1, this.enemy2, this.enemy3]) )
-			{
-
-			} 
+			this.player_got_hit_by([this.enemy1, this.enemy2, this.enemy3])
 			
-			if ( this.enemy_bullet_got_hit(this.enemy_bullets, this.player_bullets) )
+			if( this.enemy_bullet_got_hit(this.enemy_bullets, this.player_bullets) )
 			{
-				
+				this.score += 1000;
 			}
 			
 			if ( this.enemy_got_hit(this.enemy1, this.player_bullets) )
 			{
+				this.score += 1000;
 				if( ! --this.enemy1.__life)
 				{
 					this.enemy1.kill();
+					console.log('kill enemy 1');
 				}
 			}
 			
 			if ( this.enemy_got_hit(this.enemy2, this.player_bullets) )
 			{
+				this.score += 2000;
 				if( ! --this.enemy2.__life)
 				{
 					this.enemy2.kill();
-					this.enemy_bullets.removeAll();
+					console.log('kill enemy 2');
 				}
 			}
 			
 			if ( this.enemy_got_hit(this.enemy3, this.player_bullets) )
 			{
-				console.log('boom');
+				this.score += 3000;
+				if( ! --this.enemy3.__life)
+				{
+					this.enemy3.kill();
+					console.log('kill enemy 3');
+				}
 			}
 			
 			
@@ -469,17 +592,152 @@
 				
 			// this.game.debug.body(this.player);
 			
-			this.game.debug.text('this.player.__has_collided: ' + this.player.__has_collided, 10, 60);
-			this.game.debug.text('this.enemy1.__life: ' + this.enemy1.__life, 10, 80);
-			this.game.debug.text('this.player_speed: ' + this.player_speed, 10, 100);
-			this.game.debug.text('this.lifes.length: ' + this.lifes.length, 10, 120);
-			this.game.debug.text('this.enemy2.__life: ' + this.enemy2.__life, 10, 140);
+			// this.game.debug.text('this.player.__has_collided: ' + this.player.__has_collided, 10, 60);
+			// 			this.game.debug.text('this.enemy1.__life: ' + this.enemy1.__life, 10, 80);
+			// 			this.game.debug.text('this.player_speed: ' + this.player_speed, 10, 100);
+			// 			this.game.debug.text('this.lifes.length: ' + this.lifes.length, 10, 120);
+			// 			this.game.debug.text('this.enemy2.__life: ' + this.enemy2.__life, 10, 140);
+			
+
 			// this.game.debug.body(this.enemy1);
 			// 			this.game.debug.body(this.enemy2);
 			// 			this.game.debug.body(this.enemy3);
+			
+			this.score_text.text = 'SCORE: ' + this.score;
+			
+			
 		}
+	};
+	
+	Videogame.Screen_GameOver = function() {};
+		
+	Videogame.Screen_GameOver.prototype = {
+		create: function () {
+			// params: x, y, id, OPTIONAL: frame, group
+			var bg = this.add.image(0, 0, 'img_star_background');
+			bg.scale = { x: 2, y: 2 }
 			
+			var game_over = this.add.bitmapText(
+				this.world.centerX, 
+				140, 
+				'test-font', 
+				'YOU DIED', 
+				80 // px
+			);
+				
+			game_over.anchor.x = 0.5;
+				
+			var start = this.add.bitmapText(
+				this.world.centerX, 
+				this.world.centerY, 
+				'test-font', 
+				'PRESS \'ENTER\' TO PLAY AGAIN', 
+				40 // px
+			);
 			
+			var start2 = this.add.bitmapText(
+				this.world.centerX, 
+				start.y + 44, 
+				'test-font', 
+				'PRESS \'1\' to play with enemy 1', 
+				30 // px
+			);
+			
+			var start3 = this.add.bitmapText(
+				this.world.centerX, 
+				start2.y + 44, 
+				'test-font', 
+				'PRESS \'2\' to play with enemy 2', 
+				30 // px
+			);
+			
+			var start4 = this.add.bitmapText(
+				this.world.centerX, 
+				start3.y + 44, 
+				'test-font', 
+				'PRESS \'3\' to play with enemy 3', 
+				30 // px
+			);
+			// console.log(this.game.width);
+			// console.log(this.game.height);
+					
+			start.anchor.x = 0.5; start.anchor.y = 0.5;
+			start2.anchor.x = 0.5; start2.anchor.y = 0.5;
+			start3.anchor.x = 0.5; start3.anchor.y = 0.5;
+			start4.anchor.x = 0.5; start4.anchor.y = 0.5;
+			
+			start.smoothed = false;
+			start.tint = 0xffffff;
+				
+			var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+			var key_1 = this.input.keyboard.addKey(Phaser.Keyboard.ONE);
+			var key_2 = this.input.keyboard.addKey(Phaser.Keyboard.TWO);
+			var key_3 = this.input.keyboard.addKey(Phaser.Keyboard.THREE);
+
+			enter_key.onDown.addOnce(function start_game() {
+				this.state.start('GAME');
+			}, this);
+			
+			key_1.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 1 });
+			}, this);
+			
+			key_2.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 2 });
+			}, this);
+			
+			key_3.onDown.addOnce(function start_game() {
+				this.state.start('GAME', true, false, { enemy: 3 });
+			}, this);
+		}
+	};
+	
+	Videogame.Screen_Victory = function() {};
+		
+	Videogame.Screen_Victory.prototype = {
+		init: function (data) {
+			this.score = 0;
+			if (data) {
+				this.score = data.score;
+			}
+		},
+		
+		create: function () {
+			// params: x, y, id, OPTIONAL: frame, group
+			var bg = this.add.image(0, 0, 'img_star_background');
+			bg.scale = { x: 2, y: 2 }
+			
+			var game_over = this.add.bitmapText(
+				this.world.centerX, 
+				140, 
+				'test-font', 
+				'SCORE: ' + this.score, 
+				70 // px
+			);
+				
+			game_over.anchor.x = 0.5;
+				
+			var start = this.add.bitmapText(
+				this.world.centerX, 
+				this.world.centerY, 
+				'test-font', 
+				'PRESS \'ENTER\' TO PLAY AGAIN', 
+				40 // px
+			);
+			
+			// console.log(this.game.width);
+			// console.log(this.game.height);
+					
+			start.anchor.x = 0.5; start.anchor.y = 0.5;
+			
+			start.smoothed = false;
+			start.tint = 0xffffff;
+				
+			var enter_key = this.input.keyboard.addKey(Phaser.Keyboard.ENTER);
+			enter_key.onDown.addOnce(function start_game() {
+				this.state.start('MENU');
+			}, this);
+		}
 	};
 		
 	// x, y
@@ -489,6 +747,8 @@
 	global_game.state.add('PRELOADER', Videogame.Preloader, false);
 	global_game.state.add('MENU', Videogame.Screen_Menu, false);
 	global_game.state.add('GAME', Videogame.Screen_Game, false);
+	global_game.state.add('GAMEOVER', Videogame.Screen_GameOver, false);
+	global_game.state.add('VICTORY', Videogame.Screen_Victory, false);
 		
 	global_game.state.start('PRELOADER');
 		
