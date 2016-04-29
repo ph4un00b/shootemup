@@ -16,7 +16,7 @@ http {
     <% if ENV["ROOT"] %>
       root /app/www/<%= ENV["ROOT"] %>;
     <% else %>
-      root /app/www/app/views;
+      root /app/www;
     <% end %>
     index index.html;
   }
