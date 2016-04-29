@@ -178,7 +178,7 @@
 			
 			
 			this.score = 0;
-			this.player_speed = 230;
+			this.player_speed = 310;
 		},
 		setup_bullets: function (image_name) {
 			b = this.add.physicsGroup();
@@ -343,7 +343,7 @@
 			var self = this;
 			var t = this.add.tween(this.player).to(
 				{ alpha: 0 }, // prop
-				300, // duration
+				150, // duration
 				"Linear", // ease
 				true, // autostart?
 				0, // delay ms
@@ -572,7 +572,7 @@
 			/** enemy1 movement **/
 			var distance = this.game.math.distance(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
 			
-			if (distance > 20) { // 20px around player
+			if (distance > 20 && ! this.player.__has_collided) { // 20px around player
 				// Calculate the angle to the target
 				var rotation = this.game.math.angleBetween(this.enemy1.x, this.enemy1.y, this.player.x, this.player.y);
 
